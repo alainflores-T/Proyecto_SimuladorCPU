@@ -16,7 +16,7 @@ const FLAG_CF  = "E22";
 const FLAG_SF  = "F22";  
 
 // Celdas de Logs y Estados
-const LOG_MICRO_OPS = "A25"; // Registro de Micro-operaciones
+const LOG_MICRO_OPS = "O30"; // Registro de Micro-operaciones
 const CPU_STATE     = "B2";  // Estado actual (Fetch, Decode, etc.)
 
 // Matriz de RAM (Inicio en 00H, Fin en F0H)
