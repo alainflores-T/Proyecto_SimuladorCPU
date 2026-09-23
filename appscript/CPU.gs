@@ -8,12 +8,12 @@ function resetCPU() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   
   // Limpiar Registros
-  sheet.getRange("C12").setValue("00H"); // Ajusta la celda según tu tabla
-  sheet.getRange("C13").setValue("00H");
-  sheet.getRange("C14").setValue("00H");
-  sheet.getRange("C15").setValue("00H");
-  sheet.getRange("C16").setValue("00H");
+  sheet.getRange("C16").setValue("00H"); // Ajusta la celda según tu tabla
   sheet.getRange("C17").setValue("00H");
+  sheet.getRange("C18").setValue("00H");
+  sheet.getRange("C19").setValue("00H");
+  sheet.getRange("C30").setValue("00H");
+  sheet.getRange("C32").setValue("00H");
   
   // Limpiar Logs/Estado
   sheet.getRange("B2").setValue("READY");
