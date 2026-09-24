@@ -96,25 +96,44 @@ function faseExecute(sheet) {
   var inst = decodificarInstruccion(irVal);
   
   if (inst.op === "NOP") {
-    registrarLog(sheet, "EXECUTE: Operación NOP (Sin cambios en ALU)");
+    registrarLog(sheet, "EXECUTE: NOP (Sin cambios)");
     return;
   }
   
+  // Prevención de crash si faltan comas (fuerza cadenas vacías en lugar de null)
+  var dest = inst.dest || "";
+  var src  = inst.src || "";
+  
+  var valAX = sheet.getRange(REG_AX).getValue();
+  var valBX = sheet.getRange(REG_BX).getValue();
+  
+  // Operaciones de la ALU
   if (inst.op === "ADD" || inst.op === "SUB" || inst.op === "MOV") {
-    var valAX = sheet.getRange(REG_AX).getValue();
-    var valBX = sheet.getRange(REG_BX).getValue();
-    var valOrigen = (inst.src === "BX") ? valBX : ((inst.src === "AX") ? valAX : inst.src);
-    var valDestino = (inst.dest === "BX") ? valBX : valAX;
+    var valOrigen = (src === "BX") ? valBX : ((src === "AX") ? valAX : src);
+    var valDestino = (dest === "BX") ? valBX : valAX;
     
     var resultado = ejecutarALU(sheet, inst.op, valDestino, valOrigen);
     
-    // Almacenar según el registro destino
-    if (inst.dest === "AX") sheet.getRange(REG_AX).setValue(resultado);
-    if (inst.dest === "BX") sheet.getRange(REG_BX).setValue(resultado);
+    if (dest === "AX") sheet.getRange(REG_AX).setValue(resultado);
+    if (dest === "BX") sheet.getRange(REG_BX).setValue(resultado);
+    animarBus("#F44336"); // Rojo para cálculo
+  }
+  // Leer variable desde la RAM (Ej. LD AX, A0H)
+  else if (inst.op === "LD") {
+    var datoRAM = obtenerDatoRAM(sheet, src);
+    if (dest === "AX") sheet.getRange(REG_AX).setValue(datoRAM);
+    if (dest === "BX") sheet.getRange(REG_BX).setValue(datoRAM);
+    animarBus("#FFEB3B"); // Amarillo para lectura
+  }
+  // Guardar variable en la RAM (Ej. ST A0H, AX)
+  else if (inst.op === "ST") {
+    var valGuardar = (src === "BX") ? valBX : valAX;
+    var celdaRAM = obtenerCeldaRAM(dest);
+    if (celdaRAM) celdaRAM.setValue(valGuardar);
+    animarBus("#4CAF50"); // Verde para escritura
   }
   
-  animarBus("#F44336");
-  registrarLog(sheet, "EXECUTE: " + inst.op + " procesado en ALU");
+  registrarLog(sheet, "EXECUTE: " + inst.op + " procesado");
 }
 
 function faseStore(sheet) {
