@@ -107,11 +107,11 @@ function faseExecute(sheet) {
   var irVal = sheet.getRange(REG_IR).getValue();
   var inst = decodificarInstruccion(irVal);
   
-  // Si es HLT, cambiamos el estado a HALT y abortamos
+  // Si es HLT, frena el procesador
   if (inst.op === "HLT") {
     sheet.getRange(CPU_STATE).setValue("HALT");
-    registrarLog(sheet, "EXECUTE: HLT - Fin del programa");
-    return; // Sale de la función sin pasar a STORE
+    registrarLog(sheet, "EXECUTE: HLT - Programa finalizado");
+    return;
   }
   
   sheet.getRange(CPU_STATE).setValue("EXECUTE");
@@ -121,27 +121,36 @@ function faseExecute(sheet) {
     return;
   }
   
-  var dest = inst.dest || "";
-  var src  = inst.src || "";
+  var dest = (inst.dest || "").trim().toUpperCase();
+  var src  = (inst.src || "").trim().toUpperCase();
+  
   var valAX = sheet.getRange(REG_AX).getValue();
   var valBX = sheet.getRange(REG_BX).getValue();
   
+  // Operaciones de ALU (ADD, SUB, MOV)
   if (inst.op === "ADD" || inst.op === "SUB" || inst.op === "MOV") {
     var valOrigen = (src === "BX") ? valBX : ((src === "AX") ? valAX : src);
     var valDestino = (dest === "BX") ? valBX : valAX;
     
     var resultado = ejecutarALU(sheet, inst.op, valDestino, valOrigen);
     
-    if (dest === "AX") sheet.getRange(REG_AX).setValue(resultado);
-    if (dest === "BX") sheet.getRange(REG_BX).setValue(resultado);
+    // Asigna el resultado AL REGISTRO DESTINO ESPECÍFICO (AX o BX)
+    if (dest === "AX") {
+      sheet.getRange(REG_AX).setValue(resultado);
+    } else if (dest === "BX") {
+      sheet.getRange(REG_BX).setValue(resultado);
+    }
+    
     animarBus("#F44336"); 
   }
+  // Leer dato de RAM a Registro (Ejemplo: LD BX, A0H)
   else if (inst.op === "LD") {
     var datoRAM = obtenerDatoRAM(sheet, src);
     if (dest === "AX") sheet.getRange(REG_AX).setValue(datoRAM);
     if (dest === "BX") sheet.getRange(REG_BX).setValue(datoRAM);
     animarBus("#FFEB3B"); 
   }
+  // Guardar dato de Registro en RAM (Ejemplo: ST 20H, BX)
   else if (inst.op === "ST") {
     var valGuardar = (src === "BX") ? valBX : valAX;
     var celdaRAM = obtenerCeldaRAM(dest);
@@ -149,7 +158,7 @@ function faseExecute(sheet) {
     animarBus("#4CAF50"); 
   }
   
-  registrarLog(sheet, "EXECUTE: " + inst.op + " completado");
+  registrarLog(sheet, "EXECUTE: " + inst.op + " completado en " + dest);
 }
 
 function faseStore(sheet) {

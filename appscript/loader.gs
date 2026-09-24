@@ -3,6 +3,8 @@
 function loadProgram() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   
+  resetCPU(); // Reinicia los registros
+  
   // Programa de prueba en ensamblador
   var programaPrueba = [
     "MOV AX, 05H",
@@ -17,6 +19,6 @@ function loadProgram() {
     celda.setValue(programaPrueba[i]);
   }
   
-  resetCPU(); // Reinicia los registros
+  
   sheet.getRange(LOG_MICRO_OPS).setValue("Programa cargado exitosamente en RAM (00H).");
 }

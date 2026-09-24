@@ -1,21 +1,28 @@
-// Decoder.gs
+// Decoder.gs - Decodificador flexible a prueba de espacios y comas
 function decodificarInstruccion(codigoIR) {
   if (!codigoIR || codigoIR.toString().trim() === "" || codigoIR.toString().trim() === "00H") {
-    return { op: "NOP", dest: null, src: null };
+    return { op: "NOP", dest: "", src: "" };
   }
   
   var instruccion = codigoIR.toString().trim().toUpperCase();
-  var partes = instruccion.split(/\s+/); // Separa por cualquier cantidad de espacios
+  var partes = instruccion.split(/\s+/);
   var mnemonico = partes[0] || "NOP";
   
-  var operandos = [];
-  if (partes.length > 1) {
-    operandos = partes.slice(1).join("").split(",");
+  // Extrae el resto de la instrucción (operandos)
+  var resto = instruccion.substring(mnemonico.length).trim();
+  var dest = "";
+  var src  = "";
+  
+  if (resto.length > 0) {
+    // Permite separar tanto si usas comas ("BX, AX") como si usas espacios ("BX AX")
+    var operandos = (resto.indexOf(",") !== -1) ? resto.split(",") : resto.split(/\s+/);
+    dest = (operandos[0] || "").trim();
+    src  = (operandos[1] || "").trim();
   }
   
   return {
     op: mnemonico,
-    dest: operandos[0] || null,
-    src: operandos[1] || null
+    dest: dest,
+    src: src
   };
 }
