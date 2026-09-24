@@ -16,34 +16,43 @@ function resetCPU() {
   sheet.getRange(FLAG_CF).setValue(0);
   sheet.getRange(FLAG_SF).setValue(0);
   
+  // Limpiar Memoria RAM (Borra el bloque de 16x16 celdas)
+  sheet.getRange(RAM_START_ROW, RAM_START_COL, 16, 16).setValue("");
+  
   // Limpiar Estado y Log
   sheet.getRange(CPU_STATE).setValue("READY");
-  sheet.getRange(LOG_MICRO_OPS).setValue("Sistema reiniciado. Listo.");
+  sheet.getRange(LOG_MICRO_OPS).setValue("Sistema reiniciado. Memoria limpia y lista.");
 }
 
 function stepCPU() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var estadoActual = sheet.getRange(CPU_STATE).getValue();
   
+  // Si la CPU ya terminó, ignorar los clics en Step
+  if (estadoActual === "HALT") {
+    registrarLog(sheet, "SISTEMA DETENIDO. Presiona Reset para iniciar otro programa.");
+    return;
+  }
+  
   switch(estadoActual) {
     case "READY":
     case "STORE":
-      faseFetch1(sheet); // MAR <- PC
+      faseFetch1(sheet); 
       break;
     case "FETCH_1":
-      faseFetch2(sheet); // MDR <- RAM[MAR]
+      faseFetch2(sheet); 
       break;
     case "FETCH_2":
-      faseFetch3(sheet); // IR <- MDR & PC <- PC + 1
+      faseFetch3(sheet); 
       break;
     case "FETCH_3":
-      faseDecode(sheet); // Decodificar
+      faseDecode(sheet); 
       break;
     case "DECODE":
-      faseExecute(sheet); // Ejecutar en ALU
+      faseExecute(sheet); 
       break;
     case "EXECUTE":
-      faseStore(sheet); // Guardar
+      faseStore(sheet); 
       break;
   }
 }
@@ -84,30 +93,39 @@ function faseFetch3(sheet) {
 function faseDecode(sheet) {
   sheet.getRange(CPU_STATE).setValue("DECODE");
   var irVal = sheet.getRange(REG_IR).getValue();
-  
   var inst = decodificarInstruccion(irVal);
-  registrarLog(sheet, "DECODE: Operación=" + inst.op + ", Destino=" + inst.dest + ", Origen=" + inst.src);
+  
+  // Convertimos a string vacío si son null para que el log no colapse
+  var op = inst.op || "NOP";
+  var dest = inst.dest ? inst.dest : "Ninguno";
+  var src = inst.src ? inst.src : "Ninguno";
+  
+  registrarLog(sheet, "DECODE: Operación=" + op + ", Dest.=" + dest + ", Orig.=" + src);
 }
 
-// En CPU.gs
 function faseExecute(sheet) {
-  sheet.getRange(CPU_STATE).setValue("EXECUTE");
   var irVal = sheet.getRange(REG_IR).getValue();
   var inst = decodificarInstruccion(irVal);
   
+  // Si es HLT, cambiamos el estado a HALT y abortamos
+  if (inst.op === "HLT") {
+    sheet.getRange(CPU_STATE).setValue("HALT");
+    registrarLog(sheet, "EXECUTE: HLT - Fin del programa");
+    return; // Sale de la función sin pasar a STORE
+  }
+  
+  sheet.getRange(CPU_STATE).setValue("EXECUTE");
+  
   if (inst.op === "NOP") {
-    registrarLog(sheet, "EXECUTE: NOP (Sin cambios)");
+    registrarLog(sheet, "EXECUTE: NOP (Celda vacía, ignorada)");
     return;
   }
   
-  // Prevención de crash si faltan comas (fuerza cadenas vacías en lugar de null)
   var dest = inst.dest || "";
   var src  = inst.src || "";
-  
   var valAX = sheet.getRange(REG_AX).getValue();
   var valBX = sheet.getRange(REG_BX).getValue();
   
-  // Operaciones de la ALU
   if (inst.op === "ADD" || inst.op === "SUB" || inst.op === "MOV") {
     var valOrigen = (src === "BX") ? valBX : ((src === "AX") ? valAX : src);
     var valDestino = (dest === "BX") ? valBX : valAX;
@@ -116,24 +134,22 @@ function faseExecute(sheet) {
     
     if (dest === "AX") sheet.getRange(REG_AX).setValue(resultado);
     if (dest === "BX") sheet.getRange(REG_BX).setValue(resultado);
-    animarBus("#F44336"); // Rojo para cálculo
+    animarBus("#F44336"); 
   }
-  // Leer variable desde la RAM (Ej. LD AX, A0H)
   else if (inst.op === "LD") {
     var datoRAM = obtenerDatoRAM(sheet, src);
     if (dest === "AX") sheet.getRange(REG_AX).setValue(datoRAM);
     if (dest === "BX") sheet.getRange(REG_BX).setValue(datoRAM);
-    animarBus("#FFEB3B"); // Amarillo para lectura
+    animarBus("#FFEB3B"); 
   }
-  // Guardar variable en la RAM (Ej. ST A0H, AX)
   else if (inst.op === "ST") {
     var valGuardar = (src === "BX") ? valBX : valAX;
     var celdaRAM = obtenerCeldaRAM(dest);
     if (celdaRAM) celdaRAM.setValue(valGuardar);
-    animarBus("#4CAF50"); // Verde para escritura
+    animarBus("#4CAF50"); 
   }
   
-  registrarLog(sheet, "EXECUTE: " + inst.op + " procesado");
+  registrarLog(sheet, "EXECUTE: " + inst.op + " completado");
 }
 
 function faseStore(sheet) {
