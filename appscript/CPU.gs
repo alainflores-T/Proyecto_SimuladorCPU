@@ -127,48 +127,49 @@ function faseExecute(sheet) {
   var valAX = sheet.getRange(REG_AX).getValue();
   var valBX = sheet.getRange(REG_BX).getValue();
   
-  // Operaciones de ALU (ADD, SUB, MOV)
-  if (inst.op === "ADD" || inst.op === "SUB" || inst.op === "MOV") {
-    var valOrigen = (src === "BX") ? valBX : ((src === "AX") ? valAX : src);
-    var valDestino = (dest === "BX") ? valBX : valAX;
-    
-    var resultado = ejecutarALU(sheet, inst.op, valDestino, valOrigen);
-    
-    // Asigna el resultado AL REGISTRO DESTINO ESPECÍFICO (AX o BX)
-    if (dest === "AX") {
-      sheet.getRange(REG_AX).setValue(resultado);
-    } else if (dest === "BX") {
-      sheet.getRange(REG_BX).setValue(resultado);
-    }
-    
-    animarBus("#F44336"); 
-  }
-  // Saltos (Control de Flujo)
-  else if (inst.op === "JMP") {
+  // 1. Saltos (Control de Flujo)
+  if (inst.op === "JMP") {
     // Salto incondicional: PC toma la dirección de destino
     sheet.getRange(REG_PC).setValue(dest);
     registrarLog(sheet, "EXECUTE: Salto incondicional a " + dest);
-    return;
+    return; // Terminamos Execute, el próximo ciclo usará el nuevo PC
   }
   else if (inst.op === "JZ") {
     // Salto condicional: Salta solo si el Zero Flag es 1
     var zf = sheet.getRange(FLAG_ZF).getValue();
     if (zf == 1) {
       sheet.getRange(REG_PC).setValue(dest);
-      registrarLog(sheet, "EXECUTE: Salto condicional (JZ) tomado a " + dest);
+      registrarLog(sheet, "EXECUTE: Salto (JZ) tomado a " + dest);
     } else {
-      registrarLog(sheet, "EXECUTE: Salto condicional (JZ) ignorado (ZF=0)");
+      registrarLog(sheet, "EXECUTE: Salto (JZ) ignorado (ZF=0)");
     }
-    return;
+    return; // Terminamos Execute
   }
-  // Leer dato de RAM a Registro (Ejemplo: LD BX, A0H)
+  
+  // 2. Operaciones de ALU (ADD, SUB, MOV)
+  else if (inst.op === "ADD" || inst.op === "SUB" || inst.op === "MOV") {
+    var valOrigen = (src === "BX") ? valBX : ((src === "AX") ? valAX : src);
+    var valDestino = (dest === "BX") ? valBX : valAX;
+    
+    var resultado = ejecutarALU(sheet, inst.op, valDestino, valOrigen);
+    
+    if (dest === "AX") {
+      sheet.getRange(REG_AX).setValue(resultado);
+    } else if (dest === "BX") {
+      sheet.getRange(REG_BX).setValue(resultado);
+    }
+    animarBus("#F44336"); 
+  }
+  
+  // 3. Leer dato de RAM a Registro (Ej: LD AX, 20H)
   else if (inst.op === "LD") {
     var datoRAM = obtenerDatoRAM(sheet, src);
     if (dest === "AX") sheet.getRange(REG_AX).setValue(datoRAM);
     if (dest === "BX") sheet.getRange(REG_BX).setValue(datoRAM);
     animarBus("#FFEB3B"); 
   }
-  // Guardar dato de Registro en RAM (Ejemplo: ST 20H, BX)
+  
+  // 4. Guardar dato de Registro en RAM (Ej: ST 20H, AX)
   else if (inst.op === "ST") {
     var valGuardar = (src === "BX") ? valBX : valAX;
     var celdaRAM = obtenerCeldaRAM(dest);
@@ -176,7 +177,7 @@ function faseExecute(sheet) {
     animarBus("#4CAF50"); 
   }
   
-  registrarLog(sheet, "EXECUTE: " + inst.op + " completado en " + dest);
+  registrarLog(sheet, "EXECUTE: " + inst.op + " completado");
 }
 
 function faseStore(sheet) {
