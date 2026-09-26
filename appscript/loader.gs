@@ -7,10 +7,11 @@ function loadProgram() {
   
   // Programa de prueba en ensamblador
   var programaPrueba = [
-    "MOV AX, 05H",
-    "MOV BX, 03H",
-    "ADD AX, BX",
-    "HLT"
+    "LD AX, 20H",   // 00H: Carga el valor que esté en la celda 20H hacia AX
+    "MOV BX, 02H",  // 01H: Pone un 2 en BX
+    "ADD AX, BX",   // 02H: Suma ambos (AX = AX + 2)
+    "ST 21H, AX",   // 03H: Guarda el resultado en la celda 21H
+    "HLT"           // 04H: Fin
   ];
   
   // Cargar en la RAM a partir de 00H

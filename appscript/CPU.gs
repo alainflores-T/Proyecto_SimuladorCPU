@@ -143,6 +143,24 @@ function faseExecute(sheet) {
     
     animarBus("#F44336"); 
   }
+  // Saltos (Control de Flujo)
+  else if (inst.op === "JMP") {
+    // Salto incondicional: PC toma la dirección de destino
+    sheet.getRange(REG_PC).setValue(dest);
+    registrarLog(sheet, "EXECUTE: Salto incondicional a " + dest);
+    return;
+  }
+  else if (inst.op === "JZ") {
+    // Salto condicional: Salta solo si el Zero Flag es 1
+    var zf = sheet.getRange(FLAG_ZF).getValue();
+    if (zf == 1) {
+      sheet.getRange(REG_PC).setValue(dest);
+      registrarLog(sheet, "EXECUTE: Salto condicional (JZ) tomado a " + dest);
+    } else {
+      registrarLog(sheet, "EXECUTE: Salto condicional (JZ) ignorado (ZF=0)");
+    }
+    return;
+  }
   // Leer dato de RAM a Registro (Ejemplo: LD BX, A0H)
   else if (inst.op === "LD") {
     var datoRAM = obtenerDatoRAM(sheet, src);
