@@ -1,5 +1,35 @@
 // CPU.gs - Núcleo de control de micro-operaciones
+// --- FUNCIÓN RUN (Ejecución automática) ---
+function runCPU() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var estadoActual = sheet.getRange(CPU_STATE).getValue();
+  
+  if (estadoActual === "HALT") {
+    registrarLog(sheet, "SISTEMA DETENIDO. Presiona Reset antes de volver a ejecutar.");
+    return;
+  }
+  
+  registrarLog(sheet, "▶️ EJECUCIÓN AUTOMÁTICA (RUN) INICIADA");
+  
+  // Ejecuta pasos en bucle hasta que encuentre un HALT
+  while (estadoActual !== "HALT") {
+    limpiarFondoRegistros(sheet); // Limpia colores del paso anterior
+    stepCPU();
+    SpreadsheetApp.flush(); // Fuerza a Google Sheets a mostrar los cambios en pantalla
+    Utilities.sleep(600);   // Pausa de 600ms para que puedas ver qué está pasando
+    estadoActual = sheet.getRange(CPU_STATE).getValue();
+  }
+  
+  registrarLog(sheet, "⏹️ EJECUCIÓN AUTOMÁTICA FINALIZADA");
+}
 
+// Función auxiliar para quitar los colores de resaltado de los registros
+function limpiarFondoRegistros(sheet) {
+  var celdas = [REG_PC, REG_IR, REG_MAR, REG_MDR, REG_AX, REG_BX];
+  for (var i = 0; i < celdas.length; i++) {
+    sheet.getRange(celdas[i]).setBackground(null);
+  }
+}
 function resetCPU() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   

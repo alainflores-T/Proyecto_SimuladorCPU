@@ -50,3 +50,52 @@ function incrementarPC(sheet, pcActualHex) {
   var nuevoPC = num.toString(16).toUpperCase().padStart(2, '0') + "H";
   sheet.getRange(REG_PC).setValue(nuevoPC);
 }
+
+// --- CONVERSOR DE FORMATOS DE MEMORIA RAM ---
+function cambiarFormatoRAM(formatoDestino) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var rangoRAM = sheet.getRange(RAM_START_ROW, RAM_START_COL, 16, 16);
+  var data = rangoRAM.getValues();
+  
+  for (var i = 0; i < 16; i++) {
+    for (var j = 0; j < 16; j++) {
+      var val = String(data[i][j]).trim();
+      
+      // Ignorar celdas vacías o instrucciones que contengan espacios (Ej: "ADD AX, BX")
+      if (val === "" || val.indexOf(" ") !== -1) continue; 
+      
+      var numDec = NaN;
+      
+      // Detectar en qué formato está el número actualmente
+      if (val.endsWith("H")) {
+        numDec = parseInt(val.replace("H", ""), 16);
+      } else if (val.endsWith("B")) {
+        numDec = parseInt(val.replace("B", ""), 2);
+      } else if (!isNaN(val)) {
+        numDec = parseInt(val, 10);
+      }
+      
+      // Si es un número válido, convertirlo al destino seleccionado (máximo 8 bits / 255)
+      if (!isNaN(numDec)) {
+        var num8Bits = numDec & 0xFF; // Mantiene el límite a 1 Byte
+        
+        if (formatoDestino === "HEX") {
+          data[i][j] = num8Bits.toString(16).toUpperCase().padStart(2, '0') + "H";
+        } else if (formatoDestino === "BIN") {
+          data[i][j] = num8Bits.toString(2).padStart(8, '0') + "B";
+        } else if (formatoDestino === "DEC") {
+          data[i][j] = num8Bits.toString(10);
+        }
+      }
+    }
+  }
+  
+  // Escribir los datos modificados de vuelta en bloque (más rápido)
+  rangoRAM.setValues(data);
+  registrarLog(sheet, "🔄 Formato RAM cambiado a " + formatoDestino);
+}
+
+// Estas son las funciones individuales que le asignarás a tus 3 botones nuevos
+function RAM_To_HEX() { cambiarFormatoRAM("HEX"); }
+function RAM_To_BIN() { cambiarFormatoRAM("BIN"); }
+function RAM_To_DEC() { cambiarFormatoRAM("DEC"); }
