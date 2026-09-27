@@ -1,25 +1,20 @@
-// Loader.gs
-
-function loadProgram() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+function cargarDesdeHojaProgramas() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var hojaPrincipal = ss.getSheetByName(SHEET_NAME); // "Hoja 1"
+  var hojaProgramas = ss.getSheetByName("Programas"); // Tu nueva pestaña
   
-  resetCPU(); // Reinicia los registros
+  resetCPU(); // Limpia la RAM y registros primero
   
-  // Programa de prueba en ensamblador
-  var programaPrueba = [
-    "LD AX, 20H",   // 00H: Carga el valor que esté en la celda 20H hacia AX
-    "MOV BX, 02H",  // 01H: Pone un 2 en BX
-    "ADD AX, BX",   // 02H: Suma ambos (AX = AX + 2)
-    "ST 21H, AX",   // 03H: Guarda el resultado en la celda 21H
-    "HLT"           // 04H: Fin
-  ];
+  // Lee las primeras 16 filas de la columna A en la hoja "Programas"
+  var datos = hojaProgramas.getRange("A1:A16").getValues();
   
-  // Cargar en la RAM a partir de 00H
-  for (var i = 0; i < programaPrueba.length; i++) {
-    var celda = obtenerCeldaRAM(i.toString(16).toUpperCase() + "H");
-    celda.setValue(programaPrueba[i]);
+  for (var i = 0; i < datos.length; i++) {
+    var instruccion = datos[i][0];
+    if (instruccion && instruccion.toString().trim() !== "") {
+      var direccionHex = i.toString(16).toUpperCase().padStart(2, '0') + "H";
+      var celda = obtenerCeldaRAM(direccionHex);
+      if (celda) celda.setValue(instruccion);
+    }
   }
-  
-  
-  sheet.getRange(LOG_MICRO_OPS).setValue("Programa cargado exitosamente en RAM (00H).");
+  registrarLog(hojaPrincipal, "Programa cargado desde la hoja 'Programas'.");
 }

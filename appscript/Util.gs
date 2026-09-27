@@ -2,8 +2,10 @@
 
 function registrarLog(sheet, mensaje) {
   var celdaLog = sheet.getRange(LOG_MICRO_OPS);
+  var celdaconsole = sheet.getRange(LOG_CONSOLE);
   var logPrevio = celdaLog.getValue();
   celdaLog.setValue("• " + mensaje + "\n" + logPrevio);
+  celdaconsole.setValue("• " + mensaje + "\n");
 }
 
 function animarBus(colorHex) {
@@ -50,7 +52,40 @@ function incrementarPC(sheet, pcActualHex) {
   var nuevoPC = num.toString(16).toUpperCase().padStart(2, '0') + "H";
   sheet.getRange(REG_PC).setValue(nuevoPC);
 }
+function cambiarFormatoRegistros(formatoDestino) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  // Excluimos deliberadamente el registro IR para no romper el decodificador
+  var registrosNumericos = [REG_PC, REG_MAR, REG_MDR, REG_AX, REG_BX]; 
+  
+  for (var i = 0; i < registrosNumericos.length; i++) {
+    var celda = sheet.getRange(registrosNumericos[i]);
+    var val = String(celda.getValue()).trim();
+    
+    // Ignora celdas vacías o instrucciones de texto (ej. "LD AX, 20H")
+    if (val === "" || val.indexOf(" ") !== -1) continue; 
+    
+    var numDec = NaN;
+    if (val.endsWith("H")) numDec = parseInt(val.replace("H", ""), 16);
+    else if (val.endsWith("B")) numDec = parseInt(val.replace("B", ""), 2);
+    else if (!isNaN(val)) numDec = parseInt(val, 10);
+    
+    if (!isNaN(numDec)) {
+      var num8Bits = numDec & 0xFF; // Limita a 8 bits
+      if (formatoDestino === "HEX") {
+        celda.setValue(num8Bits.toString(16).toUpperCase().padStart(2, '0') + "H");
+      } else if (formatoDestino === "BIN") {
+        celda.setValue(num8Bits.toString(2).padStart(8, '0') + "B");
+      } else if (formatoDestino === "DEC") {
+        celda.setValue(num8Bits.toString(10));
+      }
+    }
+  }
+}
 
+// Actualiza las funciones de los botones para que cambien RAM y Registros a la vez
+function RAM_y_Reg_To_HEX() { cambiarFormatoRAM("HEX"); cambiarFormatoRegistros("HEX"); }
+function RAM_y_Reg_To_BIN() { cambiarFormatoRAM("BIN"); cambiarFormatoRegistros("BIN"); }
+function RAM_y_Reg_To_DEC() { cambiarFormatoRAM("DEC"); cambiarFormatoRegistros("DEC"); }
 // --- CONVERSOR DE FORMATOS DE MEMORIA RAM ---
 function cambiarFormatoRAM(formatoDestino) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();

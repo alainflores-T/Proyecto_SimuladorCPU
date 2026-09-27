@@ -8,15 +8,16 @@ const REG_IR   = "C17";
 const REG_MAR  = "C18";  
 const REG_MDR  = "C19";  
 const REG_AX   = "C30";  
-const REG_BX   = "C32";  
+const REG_BX   = "C31";  
 
 // Celdas de Flags
-const FLAG_ZF  = "D54";  
-const FLAG_CF  = "E54";  
-const FLAG_SF  = "F54";  
+const FLAG_ZF  = "I39";  
+const FLAG_CF  = "J39";  
+const FLAG_SF  = "K39";  
 
 // Celdas de Logs y Estados
 const LOG_MICRO_OPS = "O30"; // Registro de Micro-operaciones
+const LOG_CONSOLE = "F1";
 const CPU_STATE     = "B2";  // Estado actual (Fetch, Decode, etc.)
 
 // Matriz de RAM (Inicio en 00H, Fin en F0H)

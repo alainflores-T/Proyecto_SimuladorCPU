@@ -22,17 +22,28 @@ function runCPU() {
   
   registrarLog(sheet, "⏹️ EJECUCIÓN AUTOMÁTICA FINALIZADA");
 }
+function pausarCPU() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  sheet.getRange(CPU_STATE).setValue("PAUSE");
+  registrarLog(sheet, "⏸️ EJECUCIÓN PAUSADA");
+}
 
-// Función auxiliar para quitar los colores de resaltado de los registros
 function limpiarFondoRegistros(sheet) {
-  var celdas = [REG_PC, REG_IR, REG_MAR, REG_MDR, REG_AX, REG_BX];
-  for (var i = 0; i < celdas.length; i++) {
-    sheet.getRange(celdas[i]).setBackground(null);
+  // 1. Limpia registros principales y banderas
+  var celdasRegistros = [REG_PC, REG_IR, REG_MAR, REG_MDR, REG_AX, REG_BX, FLAG_ZF, FLAG_CF, FLAG_SF];
+  for (var i = 0; i < celdasRegistros.length; i++) {
+    sheet.getRange(celdasRegistros[i]).setBackground(null);
   }
+  
+  // 2. Limpia cualquier celda resaltada en la RAM (matriz 16x16)
+  sheet.getRange(RAM_START_ROW, RAM_START_COL, 16, 16).setBackground(null);
+}
+function resaltarCelda(sheet, rango, colorHex) {
+  sheet.getRange(rango).setBackground(colorHex);
 }
 function resetCPU() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  
+  limpiarFondoRegistros(sheet);
   // Limpiar Registros
   sheet.getRange(REG_PC).setValue("00H");
   sheet.getRange(REG_IR).setValue("00H");
@@ -58,11 +69,13 @@ function stepCPU() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var estadoActual = sheet.getRange(CPU_STATE).getValue();
   
-  // Si la CPU ya terminó, ignorar los clics en Step
   if (estadoActual === "HALT") {
     registrarLog(sheet, "SISTEMA DETENIDO. Presiona Reset para iniciar otro programa.");
     return;
   }
+  
+  // >>> BORRA LOS COLORES DEL PASO ANTERIOR ANTES DE EJECUTAR EL SIGUIENTE <<<
+  limpiarFondoRegistros(sheet);
   
   switch(estadoActual) {
     case "READY":
@@ -92,8 +105,8 @@ function faseFetch1(sheet) {
   sheet.getRange(CPU_STATE).setValue("FETCH_1");
   var pcVal = sheet.getRange(REG_PC).getValue();
   sheet.getRange(REG_MAR).setValue(pcVal);
-  
-  animarBus("#4CAF50"); // Bus de direcciones (Verde)
+
+  resaltarCelda(sheet, REG_MAR, "#C8E6C9"); // Solo verde en MAR
   registrarLog(sheet, "FETCH 1: MAR <- PC (" + pcVal + ")");
 }
 
@@ -102,9 +115,9 @@ function faseFetch2(sheet) {
   sheet.getRange(CPU_STATE).setValue("FETCH_2");
   var marVal = sheet.getRange(REG_MAR).getValue();
   var datoRAM = obtenerDatoRAM(sheet, marVal);
-  
+
   sheet.getRange(REG_MDR).setValue(datoRAM);
-  animarBus("#FFEB3B"); // Bus de datos (Amarillo)
+  resaltarCelda(sheet, REG_MDR, "#FFF59D"); // Solo amarillo en MDR
   registrarLog(sheet, "FETCH 2: MDR <- RAM[" + marVal + "] (" + datoRAM + ")");
 }
 
@@ -113,10 +126,12 @@ function faseFetch3(sheet) {
   sheet.getRange(CPU_STATE).setValue("FETCH_3");
   var mdrVal = sheet.getRange(REG_MDR).getValue();
   var pcVal  = sheet.getRange(REG_PC).getValue();
-  
+
   sheet.getRange(REG_IR).setValue(mdrVal);
   incrementarPC(sheet, pcVal);
-  
+
+  resaltarCelda(sheet, REG_IR, "#C8E6C9");
+  resaltarCelda(sheet, REG_PC, "#BBDEFB");
   registrarLog(sheet, "FETCH 3: IR <- MDR | PC <- PC + 1");
 }
 
@@ -174,12 +189,22 @@ function faseExecute(sheet) {
   }
   else if (inst.op === "JNZ") {
     var zf = sheet.getRange(FLAG_ZF).getValue();
-    if (zf == 0) { // Toma el salto únicamente si la bandera Zero está apagada
+    if (zf == 0) {
       sheet.getRange(REG_PC).setValue(dest);
       registrarLog(sheet, "EXECUTE: Salto (JNZ) tomado a " + dest);
     } else {
       registrarLog(sheet, "EXECUTE: Salto (JNZ) ignorado (ZF=1)");
     }
+    return;
+  }
+  else if (inst.op === "JC") {
+    var cf = sheet.getRange(FLAG_CF).getValue();
+    if (cf == 1) sheet.getRange(REG_PC).setValue(dest);
+    return;
+  }
+  else if (inst.op === "JS") {
+    var sf = sheet.getRange(FLAG_SF).getValue();
+    if (sf == 1) sheet.getRange(REG_PC).setValue(dest);
     return;
   }
   
@@ -188,37 +213,58 @@ function faseExecute(sheet) {
     var valOrigen = (src === "BX") ? valBX : ((src === "AX") ? valAX : src);
     var valDestino = (dest === "BX") ? valBX : valAX;
     
+    // Cálculo del resultado invocando a la ALU
     var resultado = ejecutarALU(sheet, inst.op, valDestino, valOrigen);
     
-    // El resultado de CMP impacta banderas en la ALU, pero no debe guardarse en el registro
     if (inst.op !== "CMP") {
-      if (dest === "AX") sheet.getRange(REG_AX).setValue(resultado);
-      else if (dest === "BX") sheet.getRange(REG_BX).setValue(resultado);
+      if (dest === "AX") {
+        sheet.getRange(REG_AX).setValue(resultado);
+        resaltarCelda(sheet, REG_AX, "#C8E6C9");
+      } else if (dest === "BX") {
+        sheet.getRange(REG_BX).setValue(resultado);
+        resaltarCelda(sheet, REG_BX, "#C8E6C9");
+      }
     }
-    animarBus("#F44336"); 
   }
   
   // 3. Leer dato de RAM a Registro
   else if (inst.op === "LD" || inst.op === "LOAD") {
     var datoRAM = obtenerDatoRAM(sheet, src);
-    if (dest === "AX") sheet.getRange(REG_AX).setValue(datoRAM);
-    if (dest === "BX") sheet.getRange(REG_BX).setValue(datoRAM);
-    animarBus("#FFEB3B"); 
+    if (dest === "AX") {
+      sheet.getRange(REG_AX).setValue(datoRAM);
+      resaltarCelda(sheet, REG_AX, "#C8E6C9");
+    }
+    if (dest === "BX") {
+      sheet.getRange(REG_BX).setValue(datoRAM);
+      resaltarCelda(sheet, REG_BX, "#C8E6C9");
+    }
   }
   
-  // 4. Guardar dato de Registro en RAM
-  else if (inst.op === "ST" || inst.op === "STORE") {
-    var valGuardar = (src === "BX") ? valBX : valAX;
-    var celdaRAM = obtenerCeldaRAM(dest);
-    if (celdaRAM) celdaRAM.setValue(valGuardar);
-    animarBus("#4CAF50"); 
+  // 4. Guardar dato de Registro en RAM (Fiel a la arquitectura)
+else if (inst.op === "ST" || inst.op === "STORE") {
+  var valGuardar = (src === "BX") ? valBX : valAX;
+  
+  // 1. MAR recibe la dirección de destino
+  sheet.getRange(REG_MAR).setValue(dest);
+  resaltarCelda(sheet, REG_MAR, "#C8E6C9");
+  
+  // 2. MDR almacena el dato a escribir en RAM
+  sheet.getRange(REG_MDR).setValue(valGuardar);
+  resaltarCelda(sheet, REG_MDR, "#FFF59D");
+  
+  // 3. La celda de RAM recibe el valor grabado en MDR
+  var celdaRAM = obtenerCeldaRAM(dest);
+  if (celdaRAM) {
+    celdaRAM.setValue(valGuardar);
+    celdaRAM.setBackground("#C8E6C9");
   }
+}
   
   registrarLog(sheet, "EXECUTE: " + inst.op + " completado");
 }
 
 function faseStore(sheet) {
   sheet.getRange(CPU_STATE).setValue("STORE");
-  animarBus("#FF9800"); // Bus de Banderas (Naranja)
+  //animarBus("#FF9800"); // Bus de Banderas (Naranja)
   registrarLog(sheet, "STORE: Resultado guardado y Banderas actualizadas");
 }
