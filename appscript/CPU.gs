@@ -137,7 +137,6 @@ function faseExecute(sheet) {
   var irVal = sheet.getRange(REG_IR).getValue();
   var inst = decodificarInstruccion(irVal);
   
-  // Si es HLT, frena el procesador
   if (inst.op === "HLT") {
     sheet.getRange(CPU_STATE).setValue("HALT");
     registrarLog(sheet, "EXECUTE: HLT - Programa finalizado");
@@ -159,13 +158,11 @@ function faseExecute(sheet) {
   
   // 1. Saltos (Control de Flujo)
   if (inst.op === "JMP") {
-    // Salto incondicional: PC toma la dirección de destino
     sheet.getRange(REG_PC).setValue(dest);
     registrarLog(sheet, "EXECUTE: Salto incondicional a " + dest);
-    return; // Terminamos Execute, el próximo ciclo usará el nuevo PC
+    return;
   }
   else if (inst.op === "JZ") {
-    // Salto condicional: Salta solo si el Zero Flag es 1
     var zf = sheet.getRange(FLAG_ZF).getValue();
     if (zf == 1) {
       sheet.getRange(REG_PC).setValue(dest);
@@ -173,34 +170,44 @@ function faseExecute(sheet) {
     } else {
       registrarLog(sheet, "EXECUTE: Salto (JZ) ignorado (ZF=0)");
     }
-    return; // Terminamos Execute
+    return; 
+  }
+  else if (inst.op === "JNZ") {
+    var zf = sheet.getRange(FLAG_ZF).getValue();
+    if (zf == 0) { // Toma el salto únicamente si la bandera Zero está apagada
+      sheet.getRange(REG_PC).setValue(dest);
+      registrarLog(sheet, "EXECUTE: Salto (JNZ) tomado a " + dest);
+    } else {
+      registrarLog(sheet, "EXECUTE: Salto (JNZ) ignorado (ZF=1)");
+    }
+    return;
   }
   
-  // 2. Operaciones de ALU (ADD, SUB, MOV)
-  else if (inst.op === "ADD" || inst.op === "SUB" || inst.op === "MOV") {
+  // 2. Operaciones de ALU (ADD, SUB, MOV, INC, DEC, CMP)
+  else if (["ADD", "SUB", "MOV", "INC", "DEC", "CMP"].indexOf(inst.op) !== -1) {
     var valOrigen = (src === "BX") ? valBX : ((src === "AX") ? valAX : src);
     var valDestino = (dest === "BX") ? valBX : valAX;
     
     var resultado = ejecutarALU(sheet, inst.op, valDestino, valOrigen);
     
-    if (dest === "AX") {
-      sheet.getRange(REG_AX).setValue(resultado);
-    } else if (dest === "BX") {
-      sheet.getRange(REG_BX).setValue(resultado);
+    // El resultado de CMP impacta banderas en la ALU, pero no debe guardarse en el registro
+    if (inst.op !== "CMP") {
+      if (dest === "AX") sheet.getRange(REG_AX).setValue(resultado);
+      else if (dest === "BX") sheet.getRange(REG_BX).setValue(resultado);
     }
     animarBus("#F44336"); 
   }
   
-  // 3. Leer dato de RAM a Registro (Ej: LD AX, 20H)
-  else if (inst.op === "LD") {
+  // 3. Leer dato de RAM a Registro
+  else if (inst.op === "LD" || inst.op === "LOAD") {
     var datoRAM = obtenerDatoRAM(sheet, src);
     if (dest === "AX") sheet.getRange(REG_AX).setValue(datoRAM);
     if (dest === "BX") sheet.getRange(REG_BX).setValue(datoRAM);
     animarBus("#FFEB3B"); 
   }
   
-  // 4. Guardar dato de Registro en RAM (Ej: ST 20H, AX)
-  else if (inst.op === "ST") {
+  // 4. Guardar dato de Registro en RAM
+  else if (inst.op === "ST" || inst.op === "STORE") {
     var valGuardar = (src === "BX") ? valBX : valAX;
     var celdaRAM = obtenerCeldaRAM(dest);
     if (celdaRAM) celdaRAM.setValue(valGuardar);

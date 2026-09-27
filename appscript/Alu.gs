@@ -7,10 +7,13 @@ function ejecutarALU(sheet, op, val1Hex, val2Hex) {
     case "ADD": resultado = v1 + v2; break;
     case "SUB": resultado = v1 - v2; break;
     case "MOV": resultado = v2; break;
+    case "INC": resultado = v1 + 1; break; // Suma 1 al registro
+    case "DEC": resultado = v1 - 1; break; // Resta 1 al registro
+    case "CMP": resultado = v1 - v2; break; // Resta lógica para alterar flags
   }
   
   // Banderas (8 bits)
-  var zeroFlag  = ((resultado & 0xFF) === 0) ? 1 : 0; // Se activa si el resultado es exactamente 0
+  var zeroFlag  = ((resultado & 0xFF) === 0) ? 1 : 0; 
   var carryFlag = (resultado > 255 || resultado < 0) ? 1 : 0;
   var signFlag  = ((resultado & 0x80) !== 0) ? 1 : 0;
   
@@ -20,12 +23,11 @@ function ejecutarALU(sheet, op, val1Hex, val2Hex) {
     var valorAnterior = celda.getValue();
     celda.setValue(valor);
     
-    // Si la bandera acaba de activarse a 1, lanza aviso y colorea rojo
     if (valor === 1 && valorAnterior !== 1) {
       registrarLog(sheet, "BANDERAS: ¡" + nombre + " activada!");
-      celda.setBackground("#FFCDD2"); // Rojo claro
+      celda.setBackground("#FFCDD2"); 
     } else if (valor === 0) {
-      celda.setBackground(null); // Quita el color si se apaga
+      celda.setBackground(null); 
     }
   }
 
