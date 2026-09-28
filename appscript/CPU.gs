@@ -43,7 +43,12 @@ function resaltarCelda(sheet, rango, colorHex) {
 }
 function resetCPU() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  
+  // Garantiza que la pestaña "Historial" exista y esté limpia
+  crearEstructuraHistorial();
   limpiarFondoRegistros(sheet);
+  limpiarHojaHistorial();
+
   // Limpiar Registros
   sheet.getRange(REG_PC).setValue("00H");
   sheet.getRange(REG_IR).setValue("00H");
@@ -57,12 +62,17 @@ function resetCPU() {
   sheet.getRange(FLAG_CF).setValue(0);
   sheet.getRange(FLAG_SF).setValue(0);
   
-  // Limpiar Memoria RAM (Borra el bloque de 16x16 celdas)
+  // Limpiar Memoria RAM
   sheet.getRange(RAM_START_ROW, RAM_START_COL, 16, 16).setValue("");
+
+  // Limpiar interfaz gráfica de la ALU
+  sheet.getRange(ALU_OP1).setValue("");
+  sheet.getRange(ALU_OP2).setValue("");
+  sheet.getRange(ALU_SYM).setValue("");
+  sheet.getRange(ALU_RES).setValue("");
   
-  // Limpiar Estado y Log
+  // Limpiar Estado
   sheet.getRange(CPU_STATE).setValue("READY");
-  sheet.getRange(LOG_MICRO_OPS).setValue("Sistema reiniciado. Memoria limpia y lista.");
 }
 
 function stepCPU() {
@@ -100,28 +110,31 @@ function stepCPU() {
   }
 }
 
-// Micro-operación 1: MAR <- PC
+// Ejemplo en faseFetch1
 function faseFetch1(sheet) {
   sheet.getRange(CPU_STATE).setValue("FETCH_1");
   var pcVal = sheet.getRange(REG_PC).getValue();
   sheet.getRange(REG_MAR).setValue(pcVal);
 
-  resaltarCelda(sheet, REG_MAR, "#C8E6C9"); // Solo verde en MAR
-  registrarLog(sheet, "FETCH 1: MAR <- PC (" + pcVal + ")");
+  resaltarCelda(sheet, REG_MAR, "#C8E6C9");
+  
+  // Usar el registro detallado
+  registrarLogDetallado(sheet, "Paso del PC (" + pcVal + ") al registro de direcciones MAR");
 }
 
-// Micro-operación 2: MDR <- RAM[MAR]
+// Ejemplo en faseFetch2
 function faseFetch2(sheet) {
   sheet.getRange(CPU_STATE).setValue("FETCH_2");
   var marVal = sheet.getRange(REG_MAR).getValue();
   var datoRAM = obtenerDatoRAM(sheet, marVal);
 
   sheet.getRange(REG_MDR).setValue(datoRAM);
-  resaltarCelda(sheet, REG_MDR, "#FFF59D"); // Solo amarillo en MDR
-  registrarLog(sheet, "FETCH 2: MDR <- RAM[" + marVal + "] (" + datoRAM + ")");
+  resaltarCelda(sheet, REG_MDR, "#FFF59D");
+  
+  registrarLogDetallado(sheet, "Lectura de RAM en dirección " + marVal + ": Dato obtenido " + datoRAM);
 }
 
-// Micro-operación 3: IR <- MDR y PC <- PC + 1
+// Ejemplo en faseFetch3
 function faseFetch3(sheet) {
   sheet.getRange(CPU_STATE).setValue("FETCH_3");
   var mdrVal = sheet.getRange(REG_MDR).getValue();
@@ -132,20 +145,21 @@ function faseFetch3(sheet) {
 
   resaltarCelda(sheet, REG_IR, "#C8E6C9");
   resaltarCelda(sheet, REG_PC, "#BBDEFB");
-  registrarLog(sheet, "FETCH 3: IR <- MDR | PC <- PC + 1");
+  
+  registrarLogDetallado(sheet, "Carga de instrucción al registro IR y avance del contador de programa PC");
 }
 
+// Ejemplo en faseDecode
 function faseDecode(sheet) {
   sheet.getRange(CPU_STATE).setValue("DECODE");
   var irVal = sheet.getRange(REG_IR).getValue();
   var inst = decodificarInstruccion(irVal);
   
-  // Convertimos a string vacío si son null para que el log no colapse
   var op = inst.op || "NOP";
   var dest = inst.dest ? inst.dest : "Ninguno";
   var src = inst.src ? inst.src : "Ninguno";
   
-  registrarLog(sheet, "DECODE: Operación=" + op + ", Dest.=" + dest + ", Orig.=" + src);
+  registrarLogDetallado(sheet, "Decodificación: Operación " + op + " sobre destino " + dest + " con origen " + src);
 }
 
 function faseExecute(sheet) {
@@ -240,7 +254,7 @@ function faseExecute(sheet) {
     }
   }
   
-  // 4. Guardar dato de Registro en RAM (Fiel a la arquitectura)
+ // 4. Guardar dato de Registro en RAM (Fiel a la arquitectura)
 else if (inst.op === "ST" || inst.op === "STORE") {
   var valGuardar = (src === "BX") ? valBX : valAX;
   

@@ -1,16 +1,132 @@
-// Utils.gs - Funciones auxiliares y lectura de RAM
+/**
+ * Registra una fila completa con todos los datos de la CPU en la pestaña "Historial"
+ */
+function registrarLogDetallado(sheet, explicacion) {
+  // Busca la hoja de historial
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var hojaHistorial = ss.getSheetByName(LOG_SHEET_NAME);
+  if (!hojaHistorial) return; 
+  
+  // Captura el estado actual de todos los registros y componentes
+  var estado   = sheet.getRange(CPU_STATE).getValue();
+  var pc       = sheet.getRange(REG_PC).getValue();
+  var ir       = sheet.getRange(REG_IR).getValue();
+  var mar      = sheet.getRange(REG_MAR).getValue();
+  var mdr      = sheet.getRange(REG_MDR).getValue();
+  var ax       = sheet.getRange(REG_AX).getValue();
+  var bx       = sheet.getRange(REG_BX).getValue();
+  
+  var aluOp1   = sheet.getRange(ALU_OP1).getValue();
+  var aluOp2   = sheet.getRange(ALU_OP2).getValue();
+  var valorSym = sheet.getRange(ALU_SYM).getValue();
+	var aluSym   = valorSym ? "'" + valorSym : "";
+  var aluRes   = sheet.getRange(ALU_RES).getValue();
+  
+  var zf       = sheet.getRange(FLAG_ZF).getValue();
+  var cf       = sheet.getRange(FLAG_CF).getValue();
+  var sf       = sheet.getRange(FLAG_SF).getValue();
+  
+  var horaActual = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "HH:mm:ss");
+  
+  // Agrega la fila con todos los datos
+  hojaHistorial.appendRow([
+    horaActual,
+    estado,
+    explicacion,
+    pc, ir, mar, mdr, ax, bx,
+    aluOp1, aluOp2, aluSym, aluRes,
+    zf, cf, sf
+  ]);
+}
 
+/**
+ * Limpia la tabla de historial conservando solo la fila de encabezados
+ */
+function limpiarHojaHistorial() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var hojaHistorial = ss.getSheetByName(LOG_SHEET_NAME);
+  if (!hojaHistorial) return;
+  
+  var ultimaFila = hojaHistorial.getLastRow();
+  if (ultimaFila > 1) {
+    hojaHistorial.getRange(2, 1, ultimaFila - 1, 16).clearContent();
+  }
+}
+
+
+// Redirige todos los eventos de la CPU a la pestaña de Historial/Log sin escribir en Hoja 1
 function registrarLog(sheet, mensaje) {
+  registrarLogDetallado(sheet, mensaje);
+}
+/*function registrarLog(sheet, mensaje) {
   var celdaLog = sheet.getRange(LOG_MICRO_OPS);
   var celdaconsole = sheet.getRange(LOG_CONSOLE);
   var logPrevio = celdaLog.getValue();
   celdaLog.setValue("• " + mensaje + "\n" + logPrevio);
   celdaconsole.setValue("• " + mensaje + "\n");
-}
+}*/
 
 function animarBus(colorHex) {
   SpreadsheetApp.flush();
   Utilities.sleep(150);
+}
+
+/**
+ * Crea la pestaña "Historial" si no existe y genera la tabla de encabezados formateada.
+ */
+function crearEstructuraHistorial() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var nombreHoja = typeof LOG_SHEET_NAME !== "undefined" ? LOG_SHEET_NAME : "Historial";
+  var hojaHistorial = ss.getSheetByName(nombreHoja);
+  
+  // Si no existe la hoja, la crea
+  if (!hojaHistorial) {
+    hojaHistorial = ss.insertSheet(nombreHoja);
+  }
+  
+  // Definición exacta de encabezados (Columnas A a P)
+  var encabezados = [[
+    "Hora",
+    "Ciclo / Estado",
+    "Acción Realizada",
+    "PC",
+    "IR",
+    "MAR",
+    "MDR",
+    "AX",
+    "BX",
+    "ALU Operando 1",
+    "ALU Operando 2",
+    "ALU Operación",
+    "ALU Resultado",
+    "ZF (Zero)",
+    "CF (Carry)",
+    "SF (Sign)"
+  ]];
+  
+  // Escribir los encabezados en la Fila 1
+  var rangoEncabezado = hojaHistorial.getRange(1, 1, 1, 16);
+  rangoEncabezado.setValues(encabezados);
+  
+  // Dar formato visual profesional a la cabecera
+  rangoEncabezado.setBackground("#1F4E78"); // Azul oscuro
+  rangoEncabezado.setFontColor("#FFFFFF"); // Texto blanco
+  rangoEncabezado.setFontWeight("bold");
+  rangoEncabezado.setHorizontalAlignment("center");
+  
+  // Congelar la fila 1 para mantener visibles las cabeceras al hacer scroll
+  hojaHistorial.setFrozenRows(1);
+  
+  // Ajustar anchos de columna para que el texto no se corte
+  hojaHistorial.setColumnWidth(1, 90);   // Hora
+  hojaHistorial.setColumnWidth(2, 120);  // Ciclo / Estado
+  hojaHistorial.setColumnWidth(3, 350);  // Acción Realizada (Más ancha para la explicación)
+  for (var c = 4; c <= 16; c++) {
+    hojaHistorial.setColumnWidth(c, 100); // Resto de columnas de registros y ALU
+  }
+  
+  SpreadsheetApp.flush();
+  Logger.log("Estructura de la hoja 'Historial' creada exitosamente.");
 }
 
 /**
@@ -52,10 +168,12 @@ function incrementarPC(sheet, pcActualHex) {
   var nuevoPC = num.toString(16).toUpperCase().padStart(2, '0') + "H";
   sheet.getRange(REG_PC).setValue(nuevoPC);
 }
+
 function cambiarFormatoRegistros(formatoDestino) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  // Excluimos deliberadamente el registro IR para no romper el decodificador
-  var registrosNumericos = [REG_PC, REG_MAR, REG_MDR, REG_AX, REG_BX]; 
+  
+  // Agregamos las celdas de la ALU (ALU_OP1, ALU_OP2, ALU_RES) a la lista para que cambien junto a los registros
+  var registrosNumericos = [REG_PC, REG_MAR, REG_MDR, REG_AX, REG_BX, ALU_OP1, ALU_OP2, ALU_RES]; 
   
   for (var i = 0; i < registrosNumericos.length; i++) {
     var celda = sheet.getRange(registrosNumericos[i]);
@@ -86,6 +204,7 @@ function cambiarFormatoRegistros(formatoDestino) {
 function RAM_y_Reg_To_HEX() { cambiarFormatoRAM("HEX"); cambiarFormatoRegistros("HEX"); }
 function RAM_y_Reg_To_BIN() { cambiarFormatoRAM("BIN"); cambiarFormatoRegistros("BIN"); }
 function RAM_y_Reg_To_DEC() { cambiarFormatoRAM("DEC"); cambiarFormatoRegistros("DEC"); }
+
 // --- CONVERSOR DE FORMATOS DE MEMORIA RAM ---
 function cambiarFormatoRAM(formatoDestino) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();

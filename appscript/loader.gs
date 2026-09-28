@@ -6,7 +6,7 @@ function cargarDesdeHojaProgramas() {
   resetCPU(); // Limpia la RAM y registros primero
   
   // Lee las primeras 16 filas de la columna A en la hoja "Programas"
-  var datos = hojaProgramas.getRange("A1:A16").getValues();
+  var datos = hojaProgramas.getRange("A2:A18").getValues();
   
   for (var i = 0; i < datos.length; i++) {
     var instruccion = datos[i][0];
