@@ -18,3 +18,4 @@ function cargarDesdeHojaProgramas() {
   }
   registrarLog(hojaPrincipal, "Programa cargado desde la hoja 'Programas'.");
 }
+

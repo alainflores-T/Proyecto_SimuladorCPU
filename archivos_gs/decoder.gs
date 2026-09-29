@@ -26,3 +26,5 @@ function decodificarInstruccion(codigoIR) {
     src: src
   };
 }
+
+

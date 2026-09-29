@@ -36,3 +36,5 @@ const ALU_RES = "D45"; // Celda del Resultado
 /*const LOG_COL = 15;         
 const LOG_START_ROW = 30;   
 const LOG_END_ROW = 45;*/
+
+

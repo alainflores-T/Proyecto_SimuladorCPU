@@ -64,3 +64,4 @@ function ejecutarALU(sheet, op, val1, val2) {
   
   return resultadoHex;
 }
+

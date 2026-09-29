@@ -253,3 +253,4 @@ function cambiarFormatoRAM(formatoDestino) {
 function RAM_To_HEX() { cambiarFormatoRAM("HEX"); }
 function RAM_To_BIN() { cambiarFormatoRAM("BIN"); }
 function RAM_To_DEC() { cambiarFormatoRAM("DEC"); }
+
