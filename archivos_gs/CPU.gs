@@ -64,6 +64,8 @@ function resetCPU() {
   
   // Limpiar Memoria RAM
   sheet.getRange(RAM_START_ROW, RAM_START_COL, 16, 16).setValue("");
+  // >>> NUEVO: Limpiar la Pila de Instrucciones Visual <<<
+  sheet.getRange(STACK_START_ROW, STACK_COL, 16, 1).setValue("").setBackground(null);
 
   // Limpiar interfaz gráfica de la ALU
   sheet.getRange(ALU_OP1).setValue("");
@@ -108,6 +110,8 @@ function stepCPU() {
       faseStore(sheet); 
       break;
   }
+  // >>> NUEVO: Actualizar el color de la pila al finalizar cada paso <<<
+  actualizarPilaInstrucciones(sheet);
 }
 
 // Ejemplo en faseFetch1
@@ -298,4 +302,28 @@ function faseStore(sheet) {
   sheet.getRange(CPU_STATE).setValue("STORE");
   //animarBus("#FF9800"); // Bus de Banderas (Naranja)
   registrarLog(sheet, "STORE: Resultado guardado y Banderas actualizadas");
+}
+function actualizarPilaInstrucciones(sheet) {
+  // 1. Limpiar el fondo de toda la pila (16 posiciones)
+  sheet.getRange(STACK_START_ROW, STACK_COL, 16, 1).setBackground(null);
+  
+  var estado = sheet.getRange(CPU_STATE).getValue();
+  var pcHex = sheet.getRange(REG_PC).getValue();
+  var numPC = parseInt(pcHex.toString().replace("H", "").trim(), 16);
+  
+  if (isNaN(numPC)) return;
+  
+  var activeNum = numPC;
+  
+  // Como el PC se incrementa internamente en la fase FETCH_3, 
+  // para las fases posteriores la instrucción que se está ejecutando es (PC - 1).
+  var estadosPostIncremento = ["FETCH_3", "DECODE", "EXECUTE", "STORE"];
+  if (estadosPostIncremento.indexOf(estado) !== -1) {
+    activeNum = numPC - 1; 
+  }
+  
+  // 2. Resaltar la instrucción activa en amarillo
+  if (activeNum >= 0 && activeNum < 16) {
+    sheet.getRange(STACK_START_ROW + activeNum, STACK_COL).setBackground("#FFEB3B"); 
+  }
 }

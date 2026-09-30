@@ -10,6 +10,9 @@ const REG_MAR  = "C18";
 const REG_MDR  = "C19";  
 const REG_AX   = "C20";  
 const REG_BX   = "C21";  
+// --- Configuración de la Pila de Instrucciones ---
+const STACK_START_ROW = 3; // Fila 3
+const STACK_COL = 9;       // Columna I (9)
 
 // Celdas de Flags
 const FLAG_ZF  = "G39";  
